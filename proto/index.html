@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hyperespace TV - prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="stage">
+  <div id="world">
+    <section class="section" id="home" style="top:0"></section>
+    <section class="section" id="room" style="top:1080px"></section>
+  </div>
+  <canvas id="overlay" width="1920" height="1080"></canvas>
+  <div id="opening"><div class="op-app"></div><div class="op-sub"></div></div>
+  <div id="help">← → choisir · ↓ ↑ changer de salle · Entrée ouvrir · C changer de camp</div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

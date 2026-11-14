@@ -1,0 +1,19 @@
+/* Our home screen inside the page: one scene per side of the Force (Tatooine or the throne room), the dock with
+   the real app logos, the clock. Everything is scoped to #ourhome; the cockpit's own layers are hidden. */
+body.ours #space, body.ours #targets, body.ours #reticle, body.ours #appname, body.ours #wash, body.ours #cockpit, body.ours #clock { display: none; }
+body.ours #cust { z-index: 5; }
+
+#ourhome { position: absolute; inset: 0; overflow: hidden; font-family: 'Saira Condensed', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif; }
+#ourhome .bg { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover; will-change: opacity; }
+#ourhome canvas.fx { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+#ourhome .shade { position: absolute; left: 0; right: 0; bottom: 0; height: 420px; pointer-events: none;
+                  background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.5) 55%, rgba(0,0,0,.8)); }
+#ourhome .clock { position: absolute; left: 96px; top: 64px; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
+#ourhome .clock .t { font-weight: 300; font-size: 96px; line-height: 1; letter-spacing: 2px; }
+#ourhome .clock .d { font-weight: 400; font-size: 26px; letter-spacing: 6px; text-transform: uppercase; opacity: .8; margin-top: 8px; }
+#ourhome .dock { position: absolute; left: 120px; right: 120px; top: 900px; height: 110px; display: flex; align-items: center; }
+#ourhome .app { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 110px; will-change: transform, opacity; }
+#ourhome .app .logo { background: #fff; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+#ourhome .app .logo.luma { mask-mode: luminance; }
+#ourhome .app .logo-text { font-weight: 700; font-size: 40px; white-space: nowrap; color: #fff; }
+#ourhome .hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; font-size: 18px; letter-spacing: 6px; text-transform: uppercase; opacity: .45; color: #fff; }
