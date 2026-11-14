@@ -54,7 +54,7 @@
   /* ---------------------------------------------------------------- the saga: six lightsabers on a rack, one for each film */
   #saga { transform: translate3d(0,1080px,0); background: #050608 url(img/hall.jpg) 0 0 / 1920px 1080px no-repeat; }    /* a hall in the Jedi Temple */
   .wash { position: absolute; inset: 0; opacity: 0; pointer-events: none; will-change: opacity; }
-  #plinthGlow { position: absolute; left: 135px; width: 1650px; top: 704px; height: 2px; opacity: 0; will-change: opacity; }   /* the ledge's front edge */
+  #plinthGlow { position: absolute; left: 135px; width: 1650px; top: 747px; height: 2px; opacity: 0; will-change: opacity; }   /* the ledge's front edge */
   .saber { position: absolute; left: 0; top: 0; width: 0; height: 0; will-change: transform; }
   .saber img { position: absolute; transition: filter .35s; filter: brightness(.5); }     /* the unlit ones sit in shadow */
   .saber.on img { filter: none; }
@@ -79,9 +79,9 @@
   #mando { transform: translate3d(0,2160px,0); background: #05070d; }
   #camp { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; will-change: transform; }    /* positions below are in the picture's 1920 frame */
   #camp > img { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
-  #fireglow { position: absolute; left: 1032px; top: 430px; width: 560px; height: 520px; border-radius: 50%; will-change: opacity;
+  #fireglow { position: absolute; left: 760px; top: 500px; width: 560px; height: 520px; border-radius: 50%; will-change: opacity;
               background: radial-gradient(closest-side, rgba(255,150,60,.30), rgba(255,120,40,.10) 50%, rgba(255,100,30,0)); }
-  #sparks { position: absolute; left: 1232px; top: 360px; width: 160px; height: 340px; }
+  #sparks { position: absolute; left: 960px; top: 320px; width: 160px; height: 340px; }
   #mshade { position: absolute; inset: 0; pointer-events: none;
             background: radial-gradient(ellipse 50% 42% at 12% 14%, rgba(4,6,16,.6), rgba(4,6,16,0) 70%); }
   .puck { position: absolute; left: 0; top: 0; width: 0; height: 0; }
@@ -102,11 +102,11 @@
   #dark { transform: translate3d(0,3240px,0); background: #000; }
   #bridge { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; will-change: transform; }   /* positions below are in the picture's 1920 frame */
   #fg, #spills { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
-  #glass { position: absolute; left: 368px; top: 136px; width: 1568px; height: 468px; will-change: transform; }   /* GL in the script */
+  #glass { position: absolute; left: 176px; top: 36px; width: 1690px; height: 706px; will-change: transform; }   /* GL in the script */
   /* the light from outside, on the room only (masked by the bridge picture itself, so never on the glass) */
   #spills { pointer-events: none; -webkit-mask: url(img/dark/bridge.png) 0 0 / 1920px 1080px; mask: url(img/dark/bridge.png) 0 0 / 1920px 1080px; }
   .spill { position: absolute; inset: 0; opacity: 0; mix-blend-mode: screen; will-change: opacity; }
-  #light { position: absolute; left: 352px; top: 0; width: 1568px; height: 916px; pointer-events: none; display: none; }   /* LIGHT in the script */
+  #light { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; display: none; }   /* LIGHT in the script */
   /* only as large as the shadow it casts (under the title): a full-screen layer of mostly nothing still costs the TV a frame's worth of drawing */
   #dshade { position: absolute; left: 0; top: 620px; width: 920px; height: 460px; pointer-events: none;
             background: radial-gradient(921.6px 432px at 268.8px 308.8px, rgba(0,0,0,.7), rgba(0,0,0,0) 70%); }
@@ -208,10 +208,10 @@
   <!-- ============================================================ THE DARK SIDE -->
   <section id="dark">
     <div id="bridge">
-      <canvas id="glass" width="1568" height="468"></canvas>
+      <canvas id="glass" width="1690" height="706"></canvas>
       <img id="fg" src="img/dark/bridge.png" alt="">
       <div id="spills"></div>
-      <canvas id="light" width="784" height="458"></canvas>
+      <canvas id="light" width="960" height="540"></canvas>
     </div>
     <div id="dshade"></div>
     <div id="dtitle"><div class="txt"><div class="k"></div><div class="t"></div></div><div class="dots"></div></div>
@@ -432,7 +432,7 @@ function drawSpace(dt, t, sway) {
 // ================================================================ the apps: star systems ahead, seen through the canopy
 // the picked one sits in the centre pane; the others are a step apart on a shallow arc, so each lands in a pane of its own.
 // The apps come from the settings (up to six); those with a logo here show it, any other shows its name.
-const LOGOS = {
+const LOGOS = window.OURHOME ? {} : {   // (the cockpit's own logos: our home has its own)
   "com.netflix.ninja": { f: "netflix", h: 50 }, "com.amazon.amazonvideo.livingroom": { f: "prime", w: 112 }, "in.startv.hotstar": { f: "jiohotstar", h: 56 },
   playstation: { f: "ps5", w: 66 },                                                    // an HDMI port with a PlayStation on it
   "com.google.android.youtube.tv": { f: "youtube", w: 62 }, "com.apple.atve.androidtv.appletv": { f: "appletv", h: 50 },
@@ -455,7 +455,7 @@ function buildMarks() {
   app = clamp(app, 0, APPS.length - 1);
   marks[app].el.classList.add("on");
 }
-{ const f = $("#frame"); f.src = CK.src;
+{ const f = $("#frame"); if (!window.OURHOME) f.src = CK.src;
   Object.assign(f.style, { left: 40 + 960 - 960 * CZ + "px", top: 30 + CK.cy - CK.cy * CZ + "px", width: 1920 * CZ + "px", height: 1080 * CZ + "px" });
   $("#appname").style.top = PANE.y + 76 * CK.z + "px";                     // the picked app's name, low in the centre pane
   if (CK.screen) {                                                          // the clock on the cockpit's monitor, moving with the cockpit
@@ -533,8 +533,8 @@ const SABERS = [
   { key: "vader", ep: "V", t: "L'Empire contre-attaque", who: "Le sabre de Dark Vador", open: "The Empire Strikes Back", c: "255,46,46" },
   { key: "luke6", ep: "VI", t: "Le Retour du Jedi", who: "Le sabre de Luke Skywalker", open: "Return of the Jedi", c: "60,255,100" },
 ];
-const HILT = { maul: [45, 470], yoda: [58.5, 205], windu: [55, 300], kenobi: [52.5, 300], vader: [72, 300], luke6: [54, 300] };   // from img/hilts/hilts.json
-const RACK_Y = 692, HS = .8, LIFT = 46, TIP = 40;                                // the ledge's top (img/hall.jpg); hilt scale; how high it rises; where the blades end
+const HILT = { maul: [49.0, 470], yoda: [26.5, 205], windu: [39.0, 300], kenobi: [51.0, 300], vader: [28.0, 300], luke6: [47.0, 300] };   // from img/hilts/hilts.json (tools/sections.py)
+const RACK_Y = 743, HS = .8, LIFT = 46, TIP = 40;                                // the ledge's top (img/hall.jpg); hilt scale; how high it rises; where the blades end
 const sabers = SABERS.map((f, i) => {
   const x = 960 + (i - 2.5) * 236 + (i < 3 ? -22 : 22);                     // a little gap between the trilogies
   const [w, h] = HILT[f.key].map(v => v * HS);
@@ -592,8 +592,8 @@ const MANDO = [
   { k: "s3", kick: "The Mandalorian", t: "Saison 3", open: "The Mandalorian, Season 3" },
   { k: "film", kick: "2026", t: "The Mandalorian<br>& Grogu", open: "The Mandalorian and Grogu" },
 ];
-const PUCK = [[362, 816], [494, 818], [624, 820], [757, 821]];             // the tops of the pucks in camp.jpg (1920 frame)
-const HOLO = { w: 166, h: 249, lift: 36, maxX: 662 };                       // the hologram; its centre stays left of Grogu's pram
+const PUCK = [[245, 816], [350, 818], [455, 820], [560, 821]];             // the tops of the pucks in camp.jpg (1920 frame)
+const HOLO = { w: 166, h: 249, lift: 36, maxX: 9999 };                       // the hologram; its centre stays left of Grogu's pram
 const pucks = MANDO.map((m, i) => {
   const [px, py] = PUCK[i], hx = Math.min(px, HOLO.maxX) - px;              // where the hologram's centre is, from its puck
   const bl = Math.min(-10, hx - HOLO.w / 2), br = Math.max(10, hx + HOLO.w / 2);
@@ -662,7 +662,7 @@ const DARK = [
   { kick: "Andor", t: "Saison 2", open: "Andor, Season 2", light: "176,196,226" },                   // the battle station being built
   { kick: "2016", t: "Rogue One", open: "Rogue One: A Star Wars Story", light: "120,214,255" },      // Scarif, its ocean and islands
 ];
-const VP = { x: 1199, y: 387 };                                             // the middle of the glass, where the streaks come from
+const VP = { x: 1180, y: 400 };                                             // the middle of the glass, where the streaks come from
 const HOP = { swap: .55, end: 1.35 };                                       // a jump: streaks up, the place changes at their peak, then they drop
 let dk = clamp(parseInt(hash("d") || "0"), 0, DARK.length - 1), shown = dk, hop = null;
 const spill = (c, a) => `radial-gradient(ellipse 58% 62% at 62% 38%, rgba(${c},${a}), rgba(${c},${a * .35}) 45%, rgba(${c},0) 75%)`;
@@ -694,9 +694,9 @@ function openDark() { const d = DARK[dk]; jump({ title: d.open, run: () => watch
 // TV draws a picture again from scratch each time its scale changes, about 300 ms a frame all through a hop.) With WebGL a
 // whole frame of it is a few calls; the 2D canvas below is the fallback (its 360 calls a frame keep the TV's main thread busy:
 // ~37 fps through a hop).
-const GL = { x: 368, y: 136, w: 1568, h: 468 };                             // the glass, with room round it for the drift (#glass)
-// the part of the stage a view picture covers: on the TV they're cut to the glass (tools/tv_assets.py)
-const VIEW = window.TV ? { x: 368, y: 136, w: 1552, h: 468 } : { x: 0, y: 0, w: W, h: H };
+const GL = { x: 176, y: 36, w: 1690, h: 706 };                             // the glass, with room round it for the drift (#glass)
+// the part of the stage a view picture covers (the whole stage: the bridge picture only lets the glass show)
+const VIEW = { x: 0, y: 0, w: W, h: H };
 let glass = $("#glass");
 // hyperspace: stars stretched into lines out from the middle of the glass
 const streaks = Array.from({ length: 360 }, () => ({ a: Math.random() * 6.2832, d: Math.random(), s: .6 + Math.random() * .8 }));
@@ -859,7 +859,7 @@ function drawGlass2D(dt, w, z, every) {
 // fallback without WebGL), masked by the bridge picture the same way, but one pass over only the part it reaches, and only
 // when it changes, at half the screen's resolution (it's a soft light; drawn at full size it still cost the TV ~15 fps
 // through a hop). Five full-screen layers in a masked group cost it as much.
-const LIGHT = { x: 352, y: 0, w: 1568, h: 916 };                            // where the light reaches (#light)
+const LIGHT = { x: 0, y: 0, w: 1920, h: 1080 };                            // where the light reaches (#light)
 const LIGHT_C = [...DARK.map(d => d.light), "196,222,255"].flatMap(c => c.split(",").map(v => v / 255));
 const LIGHT_A = [...DARK.map(() => .5), .8];                                 // as spill(c, a) gives each of them
 let lgl = null, lgp = null, lightWas = "";

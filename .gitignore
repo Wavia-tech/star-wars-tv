@@ -2,7 +2,6 @@ proto/assets/logos.js
 app/assets/logos.js
 tools/out/
 proto/assets/hilts/
-app/img/
 
 .claude/
 __pycache__/
