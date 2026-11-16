@@ -30,6 +30,7 @@ export class Lightning {
   constructor() { this.bolts = []; this.timer = 0; }
 
   // from: the hand; to: the target point; power 0..1
+  // returns true when the bolts took a new shape (the only time they need drawing again)
   update(dt, from, to, power) {
     this.timer -= dt;
     if (this.timer <= 0 || this.bolts.length === 0) {
@@ -40,7 +41,9 @@ export class Lightning {
         const tx = to.x + (Math.random() - 0.5) * 70, ty = to.y + (Math.random() - 0.5) * 30;
         this.bolts.push(makeBolt(from.x, from.y, tx, ty, 0.8 + Math.random() * 0.5));
       }
+      return true;
     }
+    return false;
   }
 
   draw(ctx, power) {

@@ -5,7 +5,7 @@ window.STARWARS = {
   // Open the Customise panel by itself the first time Star Wars TV starts, so someone who only installed the APK can pick
   // their own apps and service on the TV. Set it to false when this file is already set up for the TV (PROMPT.md does):
   // the panel then waits until someone presses Up in the cockpit.
-  askOnFirstRun: true,
+  askOnFirstRun: false,                         // the dock below is already set up for France
 
   // Up to six, left to right. `pkg` is an app's package name, or "input:<name>" for an HDMI port: the port whose
   // HDMI-CEC device name contains <name> (or whose TV input id is exactly <name>). Anything not on the TV is skipped.

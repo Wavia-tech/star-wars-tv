@@ -8,8 +8,9 @@ const CAPTURE = /capture/.test(location.search);
 
 export const VERT = `
 attribute vec2 p;
+uniform vec2 uStrip;   // the band of the stage the canvas covers: top, height (0..1)
 varying vec2 vUv;
-void main() { vUv = p * 0.5 + 0.5; vUv.y = 1.0 - vUv.y; gl_Position = vec4(p, 0.0, 1.0); }`;
+void main() { vUv = vec2(p.x * 0.5 + 0.5, uStrip.x + (0.5 - p.y * 0.5) * uStrip.y); gl_Position = vec4(p, 0.0, 1.0); }`;
 
 export const PRECISION = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -60,11 +61,16 @@ async function decode(url) {
 
 export class GLScene {
   // frag: the fragment shader; uniforms: their names; textures: [{ url | data:{N,data}, unit, repeat, rgba }]
-  constructor({ frag, uniforms, textures }) {
-    this.frag = frag; this.names = uniforms; this.textures = textures;
+  // strip: [top, height] in stage pixels: the canvas only covers the band where something moves, the still picture
+  // (an <img> under it, see home.js) shows the rest. On the TV that's most of the cost of a scene saved.
+  // scale: the canvas's resolution against the stage's (0.5 for something soft: a quarter of the pixels to work out);
+  // alpha: a layer of its own laid over the picture (the shader gives premultiplied colour) instead of the picture itself
+  constructor({ frag, uniforms, textures, strip = [0, 1080], scale = 1, alpha = false }) {
+    this.frag = frag; this.names = uniforms; this.textures = textures; this.strip = strip; this.alpha = alpha;
     this.canvas = document.createElement('canvas');
-    this.canvas.className = 'bg';
-    this.canvas.width = 1920; this.canvas.height = 1080;
+    this.canvas.className = 'strip';
+    this.canvas.width = Math.round(1920 * scale); this.canvas.height = Math.round(strip[1] * scale);
+    Object.assign(this.canvas.style, { position: 'absolute', left: '0', top: strip[0] + 'px', width: '1920px', height: strip[1] + 'px' });
     this.ok = !!this.canvas.getContext('webgl', this.opts());
     this.ready = false;
     this.ready$ = new Promise((r) => { this._resolve = r; });
@@ -74,7 +80,9 @@ export class GLScene {
     this.build();
   }
 
-  opts() { return { antialias: false, alpha: false, depth: false, stencil: false, preserveDrawingBuffer: CAPTURE, powerPreference: 'low-power' }; }
+  get canvases() { return [this.canvas]; }
+
+  opts() { return { antialias: false, alpha: this.alpha, depth: false, stencil: false, preserveDrawingBuffer: CAPTURE, powerPreference: 'low-power' }; }
 
   async build() {
     const gl = this.gl = this.canvas.getContext('webgl', this.opts());
@@ -87,6 +95,7 @@ export class GLScene {
     const loc = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     this.u = {};
     for (const n of this.names) this.u[n] = gl.getUniformLocation(prog, n);
+    gl.uniform2f(gl.getUniformLocation(prog, 'uStrip'), this.strip[0] / 1080, this.strip[1] / 1080);
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.disable(gl.DITHER);
 
     try {

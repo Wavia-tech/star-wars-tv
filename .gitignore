@@ -6,3 +6,7 @@ proto/assets/hilts/
 .claude/
 __pycache__/
 *.tmp
+android/out/
+android/*.apk
+android/*.idsig
+android/*.keystore

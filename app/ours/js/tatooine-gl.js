@@ -1,13 +1,15 @@
-// Tatooine's twin sunset, brought to life from the picture itself (WebGL, one pass):
+// Tatooine's twin sunset, brought to life from the picture itself (WebGL, over the still picture, see home.js):
 //  - heat shimmer over the horizon, which makes the two suns and the distant masts waver;
 //  - the big crawler rolling slowly along the horizon, its dust left hanging behind it;
-//  - thin haze across the sky, veils of sand blown low across the ground, in gusts;
+//  - veils of sand blown low across the ground, in gusts;
 //  - the homestead door lamp flickering, a light film grain in the distance.
 // Luke, the masts, the skiff and the homestead stay perfectly still (the mask keeps every effect off them).
 // Each effect is only worked out in its own band of the screen, so most pixels cost a few texture reads.
 import { GLScene, noiseTexture, fract } from './glscene.js';
 
 const HORIZON = 0.553;
+const STRIP_TOP = 440, STRIP_BOTTOM = 704;   // the sharp band, at full resolution: the shimmer, the crawler, the lamp
+const VEILS_TOP = 600;                        // the sand veils, from here down, at half resolution over the picture
 const LAMP = [0.941, 0.553, 0.010];   // x, y, radius (picture coordinates)
 
 const SHIP_BASE = 857 / 1520;   // where the crawler's tracks sit on the horizon
@@ -20,8 +22,7 @@ varying vec2 vUv;
 uniform sampler2D uImg, uNoise, uMask, uShip;
 uniform vec4 uShipBox;   // left, top, width, height in picture coordinates
 uniform vec4 uPh;        // time phases (0..1): shimmer x2, dust x2
-uniform vec2 uPh2;       // haze x2
-uniform float uVeilT, uGust, uFlick, uGrain;
+uniform float uFlick, uGrain;
 uniform vec2 uCover;
 const float H = ${HORIZON.toFixed(3)};
 const vec3 LAMP = vec3(${LAMP.join(', ')});
@@ -68,25 +69,11 @@ void main() {
   }
 
   if (far > 0.0) {
-    if (uv.y < H) {
-      // thin bands of high haze drifting slowly across the sky, passing in front of the suns
-      float sky = 1.0 - smoothstep(H - 0.03, H, uv.y);
-      float h1 = texture2D(uNoise, vec2(uv.x * 0.9 + uPh2.x, uv.y * 5.0)).r;
-      float h2 = texture2D(uNoise, vec2(uv.x * 1.8 + uPh2.y + 0.4, uv.y * 9.0 + 0.2)).g;
-      float haze = smoothstep(0.45, 0.8, h1 * 0.65 + h2 * 0.35) * sky * far;
-      col = mix(col, vec3(1.0, 0.78, 0.6), haze * 0.16);
-    } else if (uv.y > H + 0.005) {
-      // sand veils, blown from right to left just above the ground, finer and slower toward the horizon
-      float ground = smoothstep(H + 0.005, H + 0.07, uv.y);
-      float depth = clamp((uv.y - H) / (1.0 - H), 0.0, 1.0);
-      float speed = mix(0.05, 0.22, depth);
-      float a = texture2D(uNoise, vec2(uv.x * mix(3.4, 1.3, depth) + uVeilT * speed, uv.y * mix(30.0, 8.0, depth))).r;
-      float b = texture2D(uNoise, vec2(uv.x * mix(6.0, 2.4, depth) + uVeilT * speed * 1.7 + 0.5, uv.y * mix(52.0, 15.0, depth) + 0.3)).g;
-      float veil = smoothstep(0.44, 0.78, a * 0.62 + b * 0.38);
-      col = mix(col, vec3(1.0, 0.86, 0.68), veil * ground * far * (0.12 + 0.30 * uGust) * mix(0.6, 1.0, depth));
-    }
-    // fine film grain, 24 frames a second
-    col += (hash(vUv * 1931.0 + uGrain) - 0.5) * 0.028 * far;
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+    // fine film grain, 24 frames a second (needs highp: with less, the hash turns to blotches)
+    col += (hash(vUv * 1931.0 + uGrain) - 0.5) * 0.028 * far * smoothstep(${(STRIP_TOP / 1080).toFixed(3)}, ${(STRIP_TOP / 1080 + 0.05).toFixed(3)}, vUv.y)
+         * (1.0 - smoothstep(${((STRIP_BOTTOM - 30) / 1080).toFixed(3)}, ${(STRIP_BOTTOM / 1080).toFixed(3)}, vUv.y));
+#endif
   }
 
   // the homestead door lamp
@@ -96,17 +83,68 @@ void main() {
   gl_FragColor = vec4(col, 1.0);
 }`;
 
+
+const VEILS = `
+varying vec2 vUv;
+uniform sampler2D uNoise, uMask;
+uniform float uVeilT, uVeilT2, uVeilW, uGust;
+uniform vec2 uCover;
+const float H = ${HORIZON.toFixed(3)};
+void main() {
+  vec2 uv = (vUv - 0.5) * uCover + 0.5;
+  float far = 1.0 - texture2D(uMask, uv).g;
+  float a0 = 0.0;
+  if (far > 0.0) {
+    if (uv.y > H + 0.005) {
+      // sand veils, blown from right to left just above the ground, finer and slower toward the horizon
+      float ground = smoothstep(H + 0.005, H + 0.07, uv.y);
+      float depth = clamp((uv.y - H) / (1.0 - H), 0.0, 1.0);
+      float speed = mix(0.05, 0.22, depth);
+      vec2 sa = vec2(uv.x * mix(3.4, 1.3, depth), uv.y * mix(30.0, 8.0, depth));
+      vec2 sb = vec2(uv.x * mix(6.0, 2.4, depth) + 0.5, uv.y * mix(52.0, 15.0, depth) + 0.3);
+      float a = texture2D(uNoise, sa + vec2(uVeilT * speed, 0.0)).r;
+      float b = texture2D(uNoise, sb + vec2(uVeilT * speed * 1.7, 0.0)).g;
+#ifndef GL_FRAGMENT_PRECISION_HIGH
+      // a chip without highp: the time is kept short (it would stutter after a few minutes) and two clocks half a
+      // period apart are blended, each faded out as it wraps round, so the wrap never shows
+      float a2 = texture2D(uNoise, sa + vec2(uVeilT2 * speed, 0.37)).r;
+      float b2 = texture2D(uNoise, sb + vec2(uVeilT2 * speed * 1.7, 0.53)).g;
+      a = mix(a2, a, uVeilW); b = mix(b2, b, uVeilW);
+#endif
+      float veil = smoothstep(0.44, 0.78, a * 0.62 + b * 0.38);
+      a0 = veil * ground * far * (0.12 + 0.30 * uGust) * mix(0.6, 1.0, depth);
+    }
+  }
+  gl_FragColor = vec4(vec3(1.0, 0.86, 0.68) * a0, a0);   // premultiplied, laid over the picture
+}`;
+
+class Veils extends GLScene {
+  constructor(base, nz, highp) {
+    super({
+      strip: [VEILS_TOP, 1080 - VEILS_TOP], scale: 0.5, alpha: true,
+      frag: VEILS,
+      uniforms: ['uNoise', 'uMask', 'uVeilT', 'uVeilT2', 'uVeilW', 'uGust', 'uCover'],
+      textures: [
+        { name: 'uNoise', unit: 1, data: nz, repeat: true },
+        { name: 'uMask', unit: 2, url: base + 'tatooine-mask.png' },
+      ],
+    });
+  }
+}
+
 export class TatooineGL extends GLScene {
   constructor(src) {
     const base = src.replace(/[^/]+$/, '');
     const nz = noiseTexture(1, 7);
     super({
+      strip: [STRIP_TOP, STRIP_BOTTOM - STRIP_TOP],
       frag: FRAG,
-      uniforms: ['uImg', 'uNoise', 'uMask', 'uShip', 'uShipBox', 'uPh', 'uPh2', 'uVeilT', 'uGust', 'uFlick', 'uGrain', 'uCover'],
+      uniforms: ['uImg', 'uNoise', 'uMask', 'uShip', 'uShipBox', 'uPh', 'uFlick', 'uGrain', 'uCover'],
       textures: [
         { name: 'uImg', unit: 0, url: src, after: (im, gl, u) => {
           const s = Math.max(1920 / im.width, 1080 / im.height);
-          gl.uniform2f(u.uCover, 1920 / (im.width * s), 1080 / (im.height * s));
+          this.cover = [1920 / (im.width * s), 1080 / (im.height * s)];
+          gl.uniform2f(u.uCover, this.cover[0], this.cover[1]);
         } },
         { name: 'uNoise', unit: 1, data: nz, repeat: true },
         { name: 'uMask', unit: 2, url: base + 'tatooine-mask.png' },
@@ -114,7 +152,17 @@ export class TatooineGL extends GLScene {
       ],
     });
     this.nz = nz;
+    const pf = this.ok && this.gl.getShaderPrecisionFormat(this.gl.FRAGMENT_SHADER, this.gl.HIGH_FLOAT);
+    this.highp = !!(pf && pf.precision > 0);
+    this.veils = new Veils(base, nz, this.highp);
+    // the picture's crop, for the veils too (same picture, same cover)
+    const own = this.ready$;
+    this.ready$ = Promise.all([own, this.veils.ready$]).then(() => {
+      if (this.veils.ok && this.veils.gl) { const g = this.veils.gl; g.useProgram(g.getParameter(g.CURRENT_PROGRAM)); g.uniform2f(this.veils.u.uCover, this.cover[0], this.cover[1]); }
+    });
   }
+
+  get canvases() { return this.veils && this.veils.ok ? [this.canvas, this.veils.canvas] : [this.canvas]; }
 
   render(t) {
     if (!this.ready) return;
@@ -123,9 +171,6 @@ export class TatooineGL extends GLScene {
     const gust = Math.max(0, Math.min(1, 0.5 + 0.32 * Math.sin(t * 0.23) + 0.22 * Math.sin(t * 0.61 + 1.3) + 0.12 * Math.sin(t * 1.37 + 0.4)));
     // every time term goes in as a phase (0..1), worked out here in double precision: no drift after hours on a TV chip
     gl.uniform4f(u.uPh, fract(t * 0.55), fract(t * 0.9), fract(t * 0.035), fract(t * 0.07));
-    gl.uniform2f(u.uPh2, fract(t * 0.010), fract(t * 0.018));
-    gl.uniform1f(u.uVeilT, t % 2000);   // the veils' speed varies with depth: a plain time, wrapped every half hour
-    gl.uniform1f(u.uGust, gust);
     gl.uniform1f(u.uFlick, 0.94 + 0.06 * (this.nz.r(t * 0.9, 0.5) * 2 - 0.5));
     gl.uniform1f(u.uGrain, Math.floor(t * 24) % 1000);
     // the crawler: one slow journey from where it stands in the picture to behind the homestead, then it is gone
@@ -134,5 +179,21 @@ export class TatooineGL extends GLScene {
     const cx = SHIP_START + (SHIP_END - SHIP_START) * k;
     gl.uniform4f(u.uShipBox, cx - this.shipW / 2, SHIP_BASE - this.shipH + Math.sin(t * 1.3) * 0.00025, this.shipW, this.shipH);
     this.draw();
+
+    // the veils, on their own half-resolution layer
+    const v = this.veils;
+    if (!v.ready) return;
+    { const gl = v.gl, u = v.u;
+      // the veils' speed varies with depth, so their time can't go in as a phase: a plain time, wrapped every half hour
+      // with highp; without it, two 40 s clocks half a period apart, cross-faded (see the shader)
+      if (this.highp) gl.uniform1f(u.uVeilT, t % 2000);
+      else {
+        const P = 40, a = t % P, b = (t + P / 2) % P;
+        gl.uniform1f(u.uVeilT, a); gl.uniform1f(u.uVeilT2, b);
+        gl.uniform1f(u.uVeilW, 1 - Math.abs(a / P - 0.5) * 2);   // 1 mid-period, 0 as it wraps
+      }
+      gl.uniform1f(u.uGust, gust);
+      v.draw();
+    }
   }
 }

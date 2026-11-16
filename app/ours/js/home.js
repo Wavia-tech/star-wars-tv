@@ -44,15 +44,20 @@ export class Home {
     this.power = 0; this.surge = 0;
     this.lightning = new Lightning();
     this.frameN = 0; this.ema = 16.7; this.slowFor = 0;
-    this.half = /fps30/.test(location.search);   // a slow chip draws the scenes every other frame (the dock stays at full rate)
+    // the scenes are drawn every other frame on the TV (measured on a Mali-470: 53 fps instead of 48, half the graphics
+    // work; mist, sand and shimmer are slow enough never to show it), and anywhere that can't hold 60; the dock always runs
+    // at full rate
+    this.half = /fps30/.test(location.search) || !!window.TV;
 
     // only the chosen side's scene is built at start; the other one the first time the side is switched
     this.scenes = {};
     this.layer = { jedi: null, sith: null };
     this.shade = document.createElement('div'); this.shade.className = 'shade';
     root.append(this.shade);
-    this.fx2 = document.createElement('canvas'); this.fx2.className = 'fx'; this.fx2.width = 1920; this.fx2.height = 1080;
+    // the lightning: a soft light, drawn at half the screen's resolution (a quarter of the pixels for the TV to fill)
+    this.fx2 = document.createElement('canvas'); this.fx2.className = 'fx'; this.fx2.width = 960; this.fx2.height = 540;
     this.ctx2 = this.fx2.getContext('2d');
+    this.ctx2.setTransform(0.5, 0, 0, 0.5, 0, 0);   // still drawn in stage pixels
     this.fx2.style.display = 'none';
     this.box = null;
     root.append(this.fx2);
@@ -79,12 +84,15 @@ export class Home {
   scene(c) {
     if (this.scenes[c]) return this.scenes[c];
     const Gl = c === 'jedi' ? TatooineGL : ThroneGL;
+    // the still picture, and over it the canvas, which only covers the band where something moves
+    const layer = document.createElement('div'); layer.className = 'scene'; layer.dataset.camp = c;
+    layer.append(bg(SCENES[c].img, 'placeholder-' + c, c));
     let sc = new Gl(SCENES[c].img);
-    if (!sc.ok) sc = { ok: false, ready: true, ready$: Promise.resolve(), canvas: bg(SCENES[c].img, 'placeholder-' + c, c), render() {} };
-    sc.canvas.dataset.camp = c;
-    sc.canvas.style.opacity = '0'; sc.canvas.style.visibility = 'hidden';
-    this.root.insertBefore(sc.canvas, this.shade);
-    this.scenes[c] = sc; this.layer[c] = sc.canvas;
+    if (sc.ok) layer.append(...sc.canvases);
+    else sc = { ok: false, ready: true, ready$: Promise.resolve(), render() {} };
+    layer.style.opacity = '0'; layer.style.visibility = 'hidden';
+    this.root.insertBefore(layer, this.shade);
+    this.scenes[c] = sc; this.layer[c] = layer;
     sc.ready$.then(() => { if (this.camp === c) this.shown = c; });
     setTimeout(() => { if (this.camp === c) this.shown = c; }, 4000);   // never wait forever on a slow picture
     return sc;
@@ -144,27 +152,32 @@ export class Home {
     if (!visible) return;
     // frame pacing: if the TV can't hold 60 for two seconds, the scenes go to 30 (slow mist and sand never show it)
     this.ema += (dt * 1000 - this.ema) * 0.05;
-    if (!this.half) { this.slowFor = this.ema > 21 ? this.slowFor + dt : 0; if (this.slowFor > 2) this.half = true; }
+    if (!this.half) { this.slowFor = this.ema > 28 ? this.slowFor + dt : 0; if (this.slowFor > 2) this.half = true; }
     if (this.half && (this.frameN++ & 1)) return;
     if (jedi > 0.01 && this.scenes.jedi) this.scenes.jedi.render(t);
     if (sith > 0.01 && this.scenes.sith) this.scenes.sith.render(t);
 
-    // the lightning, over the shade so it reads clearly against the dock; only the area it covers is cleared
+    // the lightning, over the shade so it reads clearly against the dock. Redrawn only when the bolts take a new shape
+    // (about 14 times a second) or the side is fading in: between those the canvas is left as it is, which costs nothing.
     const ctx2 = this.ctx2;
-    if (this.box) { const b = this.box; ctx2.clearRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); this.box = null; }
     if (sith > 0.01) {
       if (this.fx2.style.display) this.fx2.style.display = '';
       this.surge = Math.max(0, this.surge - dt * (this.half ? 4.4 : 2.2));
       this.power = 0.6 + 0.4 * this.surge;
       const hand = THRONE_HAND;
       const to = { x: this.selX, y: DOCK_TOP + 6 };
-      this.lightning.update(this.half ? dt * 2 : dt, hand, to, this.power);
+      const fresh = this.lightning.update(this.half ? dt * 2 : dt, hand, to, this.power);
+      if (!fresh && sith >= 1 && this.box) return;
+      if (this.box) { const b = this.box; ctx2.clearRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); this.box = null; }
       this.lightning.draw(ctx2, this.power * sith);
       stamp(ctx2, glow('rgba(190,200,255,1)', 256), hand.x, hand.y, 26, 0.85 * sith);
       stamp(ctx2, glow('rgba(170,180,255,1)', 256), to.x, to.y + 30, 190, (0.35 + 0.2 * Math.random()) * this.power * sith);
       const m = 380;
       this.box = [Math.max(0, Math.min(hand.x, to.x) - m), Math.max(0, hand.y - m), Math.min(1920, Math.max(hand.x, to.x) + m), 1080];
-    } else if (!this.fx2.style.display) this.fx2.style.display = 'none';
+    } else {
+      if (this.box) { const b = this.box; ctx2.clearRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); this.box = null; }
+      if (!this.fx2.style.display) this.fx2.style.display = 'none';
+    }
   }
 
   openColor() { return this.camp === 'sith' ? '#ff2020' : '#3d8bff'; }

@@ -11,6 +11,7 @@ const BANDS = [
   [FLOOR + 0.14, 0.24, 1.9, 0.0105, 0.68],
 ];
 const TOP = Math.min(FLOOR - 0.06, ...BANDS.map((b) => b[0] - b[1] / 2));
+const STRIP_TOP = Math.floor(TOP * 1080 / 8) * 8 - 8;    // the canvas starts just above the mist
 
 const f = (x) => x.toFixed(4);
 const FRAG = `
@@ -47,6 +48,7 @@ ${BANDS.map((b, i) => `    col = band(col, uv, ${f(b[0])}, ${f(b[1])}, ${f(b[2])
 export class ThroneGL extends GLScene {
   constructor(src) {
     super({
+      strip: [STRIP_TOP, 1080 - STRIP_TOP], scale: 0.5,   // mist is soft: half the resolution never shows
       frag: FRAG,
       uniforms: ['uImg', 'uNoise', 'uMist', 'uMistPh', 'uPatchPh', 'uCover'],
       textures: [

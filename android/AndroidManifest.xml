@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Star Wars TV: Android TV launcher that hosts the web mock-up (assets/web/) in a WebView.
+
+  Rules (see android/README.md):
+  - NO permission. No INTERNET, no ACCESS_NETWORK_STATE, no RECEIVE_BOOT_COMPLETED. Verifiable with
+    `aapt dump permissions StarWarsTV.apk`: the list must be empty.
+  - No QUERY_ALL_PACKAGES: the <queries> block only declares the intents we need.
+  - Two entry points on the same activity:
+      .Home  : HOME category (the home screen). DISABLED in this manifest: installing or updating the APK never
+               takes the Home key and never makes the TV show its "which home app?" chooser. HomeMode.requestHome
+               enables it at runtime (PackageManager.setComponentEnabledSetting on our own component, no permission)
+               only when the person chooses « Faire de Poudlard l'accueil », after recording the current home;
+               HomeMode.giveBackHome disables it again and relaunches that recorded home.
+      .Start : LEANBACK_LAUNCHER category (the "Star Wars TV" icon in the app list), always enabled,
+               so you can go back even when .Home is disabled.
+  HomeActivity itself declares NO intent filter: .Home is the only HOME component (build.sh checks it).
+  Inspired by the Free My TV manifest (io.freemytv), reduced to the strict minimum.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="fr.wavia.starwarstv"
+    android:versionCode="3"
+    android:versionName="0.3">
+
+    <!-- A TV does not necessarily have a touchscreen or declare Leanback (projectors, boxes): nothing is required. -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
+    <!-- What the launcher is allowed to SEE (Android 11+ filters package visibility).
+         Same spirit as Free My TV, without its list of named packages: our apps are all Leanback. -->
+    <queries>
+        <!-- TV apps (list of installed apps, banners, launching) -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <!-- Side-loaded "phone" apps (fallback of getLaunchIntentForPackage) -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- The other home screens: to find the original home (HomeMode.originalHome) -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <!-- HDMI inputs: the standard input passthrough intent (TvContract passthrough). The system's TV app
+             often filters on the MIME type resolved by the TvProvider rather than on the scheme: we declare both
+             forms so it can see us on Android 11+. Apps.switchInput does not depend on resolveActivity():
+             the intent is launched inside a try (to be verified on the target TV). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:host="android.media.tv" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="vnd.android.cursor.item/channel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="vnd.android.cursor.item/passthrough" />
+        </intent>
+        <!-- https content links (allow list in Apps.openUrl), opened in the app that owns them -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- The TV's own settings screens (Apps.SYSTEM): the Android TV Settings app and the generic actions -->
+        <package android:name="com.android.tv.settings" />
+        <intent>
+            <action android:name="android.settings.SETTINGS" />
+        </intent>
+        <intent>
+            <action android:name="com.google.android.intent.action.CONNECT_INPUT" />
+        </intent>
+        <intent>
+            <action android:name="android.settings.APPLICATION_DETAILS_SETTINGS" />
+            <data android:scheme="package" />
+        </intent>
+        <!-- HDMI ports and tuner (Apps.inputs / liveTv), and the TV's own live-TV apps -->
+        <intent>
+            <action android:name="android.media.tv.TvInputService" />
+        </intent>
+        <package android:name="com.google.android.tv" />
+        <package android:name="com.tcl.tv" />
+        <package android:name="com.mediatek.wwtv.tvcenter" />
+        <package android:name="com.sony.dtv.tvx" />
+        <package android:name="com.smartdevice.livetv" />
+        <package android:name="com.amazon.tv.livetv" />
+        <!-- The store (Apps.store): Play Store, or Amazon's on Fire TV -->
+        <package android:name="com.android.vending" />
+        <package android:name="com.amazon.venezia" />
+    </queries>
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@drawable/icon"
+        android:banner="@drawable/banner"
+        android:allowBackup="false"
+        android:hardwareAccelerated="true"
+        android:supportsRtl="false"
+        android:theme="@style/StarWarsTV">
+
+        <!-- The single activity. Attributes taken from Free My TV's HomeActivity:
+             singleTask + empty taskAffinity: a single instance, never stacked behind an app;
+             stateNotNeeded: the system may kill and recreate it without state (it is a home screen);
+             clearTaskOnLaunch + excludeFromRecents: never in the recents;
+             broad configChanges: no recreation on every display change. -->
+        <activity
+            android:name=".HomeActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:stateNotNeeded="true"
+            android:clearTaskOnLaunch="true"
+            android:excludeFromRecents="true"
+            android:resumeWhilePausing="true"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection" />
+
+        <!-- HOME entry point: the one the TV offers next to its own home once enabled. DISABLED at install
+             (android:enabled="false"): only HomeMode.requestHome enables it, when the person asks for it.
+             No android:priority: the system caps a non-privileged app's priority at 0, and in any case
+             the person chooses, the launcher never pushes itself to the front. -->
+        <activity-alias
+            android:name=".Home"
+            android:targetActivity=".HomeActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- "App list" entry point: always available, it is the way back. -->
+        <activity-alias
+            android:name=".Start"
+            android:targetActivity=".HomeActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+    </application>
+</manifest>

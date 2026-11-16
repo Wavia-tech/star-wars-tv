@@ -2,12 +2,12 @@
 // Logos come from proto/assets/logos.js (the real app logos, supplied locally, never versioned).
 
 export const APPS = [
-  { id: 'netflix', name: 'Netflix' },
-  { id: 'disney', name: 'Disney+' },
-  { id: 'prime', name: 'Prime Video' },
-  { id: 'canal', name: 'Canal+' },
-  { id: 'youtube', name: 'YouTube' },
-  { id: 'max', name: 'HBO Max' },
+  { id: 'netflix', name: 'Netflix', pkg: 'com.netflix.ninja' },
+  { id: 'disney', name: 'Disney+', pkg: 'com.disney.disneyplus' },
+  { id: 'prime', name: 'Prime Video', pkg: 'com.amazon.amazonvideo.livingroom' },
+  { id: 'canal', name: 'Canal+', pkg: 'com.canal.android.canal' },
+  { id: 'youtube', name: 'YouTube', pkg: 'com.google.android.youtube.tv' },
+  { id: 'max', name: 'HBO Max', pkg: 'com.wbd.stream' },
 ];
 
 // The scenes, with the points the animations hang on (stage pixels, 1920x1080), measured on each picture.
