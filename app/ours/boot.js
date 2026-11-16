@@ -3,6 +3,7 @@
 import { Home } from './js/home.js';
 import { Sfx } from './js/audio.js';
 import { Settings } from './js/settings.js';
+import { Picker } from './js/picker.js';
 
 let camp = 'jedi';
 try { camp = localStorage.getItem('camp') || 'jedi'; } catch { /* private mode */ }
@@ -18,8 +19,10 @@ const refreshApps = () => { if (window.SW) home.setApps(SW.dock()); };
 refreshApps();
 const settings = new Settings({ camp: () => camp, setCamp, sfx, openApps: () => window.SW && SW.openCustom() });
 
+const picker = new Picker(sfx);
+
 window.OURS = {
-  home, sfx, settings, refreshApps,
+  home, sfx, settings, picker, refreshApps,
   get camp() { return camp; },
   toggleCamp() { setCamp(camp === 'jedi' ? 'sith' : 'jedi'); },
 };

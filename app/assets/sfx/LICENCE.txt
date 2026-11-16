@@ -1,0 +1,3 @@
+Sons de sabre : découpés dans « Light Sabre Sounds » d'aquinn (OpenGameArt.org, licence CC0, domaine public),
+https://opengameart.org/content/light-sabre-sounds — ignite, retract, swing, hyper, clash, hum.
+Les autres sons de l'appli sont synthétisés (ours/js/audio.js).

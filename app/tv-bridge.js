@@ -26,6 +26,8 @@
       if (link) return A.openUrl(link, app);
       return A.launch(installed().has(app) ? app : DISNEY);
     },
+    // a title's own page in a service (config.js: links), opened in that app
+    openLink: (url, pkg) => A.openUrl(url, pkg),
     // Réglages → Touche Home: "app" (Star Wars TV answers Home) or "original" (the TV's own home, the way back)
     homeMode: () => A.homeMode() === "poudlard" ? "app" : "original",
     setHome: mode => A.setHome(mode === "app" ? "poudlard" : "original"),

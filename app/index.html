@@ -286,7 +286,7 @@ const firstRun = !loadSettings() && DEFAULTS.askOnFirstRun !== false;      // co
 const settings = Object.assign({ dock: DEFAULTS.dock, films: DEFAULTS.films }, loadSettings() || {});
 // for our home (ours/boot.js): the dock as Personnaliser left it, only the apps the TV has; and that panel itself
 window.SW = { dock: () => settings.dock.filter(e => tvHas(e.pkg)).slice(0, 6).map(e => ({ name: e.label, pkg: e.pkg })), openCustom: () => openCustom() };
-window.SW_VERSION = "0.4";
+window.SW_VERSION = "0.5";
 // two cockpits: 1 from the back of the cockpit (img/cockpit.png), 2 from the pilots' seats (img/cockpit2.png, shown 15% larger,
 // more canopy and less console). #cockpit2 in the address, or C on a keyboard, switches. pane: the centre pane in the picture.
 const CK = /cockpit2/.test(location.hash) ? { src: "img/cockpit2.png", z: 1.15, cy: 486, pane: { x: 959, y: 525 } }
@@ -559,6 +559,7 @@ function pickSaber(i) {
   i = clamp(i, 0, SABERS.length - 1);
   if (i === sel) { sabers[i].lift.v -= 120; return; }
   sabers[sel].el.classList.remove("on"); sel = i; sabers[sel].el.classList.add("on"); selAt = 0;
+  if (window.OURS) OURS.sfx.swing();
   sagaText();
 }
 function sagaText() {
@@ -578,6 +579,8 @@ function saga(dt, t) {
     css(s.ep, "transform", `translate3d(0, ${(-y).toFixed(1)}px, 0)`);                 // the numeral stays on the plinth
     // it ignites once it's clear of the cradle; the others shut off at once
     const want = on && selAt > .3 ? 1 : 0;
+    if (window.OURS && want !== s.want) { if (want) OURS.sfx.ignite(); else if (s.ign > .5) OURS.sfx.retract(); }
+    s.want = want;
     s.ign = want ? Math.min(1, s.ign + dt / .32) : Math.max(0, s.ign - dt / .16);
     const k = want ? 1 - Math.pow(1 - s.ign, 3) : s.ign;
     const hum = 1 + Math.sin(t * 47 + i) * .025 + Math.sin(t * 13.3) * .015;
@@ -617,6 +620,7 @@ function pickPuck(i) {
   i = clamp(i, 0, MANDO.length - 1);
   if (i === pk) return;
   pucks[pk].el.classList.remove("on"); pk = i; pucks[pk].el.classList.add("on"); pkAt = 0;
+  if (window.OURS) setTimeout(() => OURS.sfx.holo(), 120);
   mandoText();
 }
 function mandoText() { $("#mtitle .k").textContent = MANDO[pk].kick; $("#mtitle .t").innerHTML = MANDO[pk].t; }
@@ -689,11 +693,12 @@ darkText();
 function pickDark(i) {
   i = clamp(i, 0, DARK.length - 1); if (i === dk) return;
   dk = i; darkText(true);
+  if (window.OURS) OURS.sfx.hyper(0.55);
   if (hop && hop.t < HOP.swap) return;                                      // still on the way: it goes to the new place instead
   // arriving somewhere already: off again from where the streaks are now
   hop = { t: hop ? HOP.swap * (1 - (hop.t - HOP.swap) / (HOP.end - HOP.swap)) : 0 };
 }
-function openDark() { const d = DARK[dk]; jump({ title: d.open, run: () => watch(d.open) }); }
+function openDark() { const d = DARK[dk]; watchFrom(d.open, d.t); }
 // what's outside, and hyperspace over it, drawn into one canvas the size of the glass. (Not pictures scaled with CSS: the
 // TV draws a picture again from scratch each time its scale changes, about 300 ms a frame all through a hop.) With WebGL a
 // whole frame of it is a few calls; the 2D canvas below is the fallback (its 360 calls a frame keep the TV's main thread busy:
@@ -948,9 +953,14 @@ const filmLink = title => ((DEFAULTS.links || {})[settings.films] || {})[title] 
 const watch = title => window.TV && TV.openFilm(filmLink(title), settings.films, title);
 function openApp() { const a = APPS[app]; if (a.target === "customise") return openCustom(); jump({ title: a.n, run: () => window.TV && TV.launch(a.target) }); }
 function openOurApp() { const a = OURS.home.current(); if (a.settings) return SW.openCustom(); jump({ title: a.name, run: () => window.TV && TV.launch(a.pkg || a.id) }); }
-function openFilm() { const f = SABERS[sel]; jump({ title: f.t, run: () => watch(f.open || f.t) }); }
-function openMando() { const m = MANDO[pk]; jump({ title: m.open, run: () => watch(m.open) }); }
-function jump(what) { if (jumping) return; jumping = true; jumpT = 0; jumpWhat = what; navText(); }
+function openFilm() { const f = SABERS[sel]; watchFrom(f.open || f.t, f.t); }
+function openMando() { const m = MANDO[pk]; watchFrom(m.open, m.kick + " · " + m.t.replace(/<br>/g, " ")); }
+// a title: on several services, ours/js/picker.js shows them and the person picks one; then the jump, and the TV opens it
+function watchFrom(title, label) {
+  const go = o => jump({ title: label, run: () => window.TV && (o ? TV.openLink(o.url, o.pkg) : watch(title)) });
+  if (window.OURS && OURS.picker) OURS.picker.choose(title, label, go); else go(null);
+}
+function jump(what) { if (jumping) return; jumping = true; jumpT = 0; jumpWhat = what; navText(); if (window.OURS) OURS.sfx.hyper(0.8); }
 function updateJump(dt) {
   if (!jumping) return;
   jumpT += dt;
@@ -1010,6 +1020,7 @@ addEventListener("keydown", e => {
   if (k.startsWith("Arrow") || k === "Enter") e.preventDefault();
   if ((k === "c" || k === "C") && window.OURS) { OURS.toggleCamp(); return; }
   // Réglages: the remote's Menu key from anywhere, or OK on the gear at the top right of the home
+  if (window.OURS && OURS.picker && OURS.picker.isOpen) { OURS.picker.key(k); return; }
   if (window.OURS && OURS.settings.isOpen && !custom.open) { OURS.settings.key(k); if (!OURS.settings.isOpen && k === "Home") window.tvHome(); return; }
   if (window.OURS && k === "ContextMenu" && !custom.open) { section = 0; OURS.home.gear(false); OURS.settings.open(); return; }
   if (k === "Home" && !custom.open) { window.tvHome(); return; }
@@ -1017,6 +1028,7 @@ addEventListener("keydown", e => {
   if (custom.open) return customKey(k);
   if (jumping || back) return;
   const up = k === "ArrowUp", down = k === "ArrowDown", ok = k === "Enter" || k === " ", backKey = k === "Escape" || k === "Backspace";
+  const was = section; queueMicrotask(() => { if (section !== was && window.OURS) OURS.sfx.whoosh(); });
   if (section === 0 && custOn) {                                       // Customise is showing at the top
     if (ok) openCustom(); else if (backKey || (k.startsWith("Arrow") && !up)) setCust(false);
   } else if (section === 0 && window.OURS && OURS.home.gearOn) {          // the gear is focused
@@ -1224,6 +1236,8 @@ function frame(now) {
   css($("#mando"), "transform", `translate3d(0, ${(1080 * (2 - pg)).toFixed(1)}px, 0)`);
   css($("#dark"), "transform", `translate3d(0, ${(1080 * (3 - pg)).toFixed(1)}px, 0)`);
   if (pg > .001 && pg < 1.999) saga(dt, t);
+  // the chosen saber's hum, as loud as the saber room is in view
+  if (window.OURS) { const h = (pg > .5 && pg < 1.5 ? sabers[sel].ign * (1 - Math.abs(pg - 1) * 2) : 0); if (Math.abs(h - (frame.hum || 0)) > .02 || (h === 0 && frame.hum)) { OURS.sfx.hum(h); frame.hum = h; } }
   if (pg > 1.001 && pg < 2.999) mando(dt, t);
   if (pg > 2.001) dark(dt, t);
   drawWarp(dt);

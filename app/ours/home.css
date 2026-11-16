@@ -44,3 +44,20 @@ body.ours #cust { z-index: 5; }
 #swset .sub { font-size: 20px; opacity: .6; margin-top: 8px; line-height: 1.35; }
 #swset .note { min-height: 30px; margin: 12px 24px 0; font-size: 22px; color: #ffd7a0; }
 #swset .foot { margin: 14px 24px 0; font-size: 17px; letter-spacing: 3px; opacity: .45; }
+
+/* Where to watch (picker.js) */
+#swpick { position: absolute; inset: 0; display: none; z-index: 7; font-family: 'Saira Condensed', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif; color: #fff;
+          background: linear-gradient(rgba(4,6,12,0) 30%, rgba(4,6,12,.88) 62%); }
+#swpick.open { display: block; }
+#swpick .box { position: absolute; left: 0; right: 0; bottom: 70px; text-align: center; }
+#swpick .t { font-size: 48px; font-weight: 300; letter-spacing: 1px; }
+#swpick .row { display: flex; justify-content: center; gap: 40px; margin-top: 34px; }
+#swpick .svc { width: 300px; padding: 26px 20px 18px; border-radius: 18px; border: 2px solid rgba(255,255,255,.18); display: flex; flex-direction: column; align-items: center; gap: 14px; }
+#swpick .svc.on { border-color: #fff; background: rgba(255,255,255,.1); }
+#swpick .svc.absent { opacity: .35; }
+#swpick .logo { background: #fff; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; }
+#swpick .logo.luma { mask-mode: luminance; }
+#swpick .name { font-size: 40px; font-weight: 600; }
+#swpick .note { font-size: 20px; opacity: .65; }
+#swpick .say { margin-top: 26px; font-size: 26px; }
+#swpick .foot { margin-top: 12px; font-size: 17px; letter-spacing: 3px; opacity: .45; }

@@ -19,8 +19,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="fr.wavia.starwarstv"
-    android:versionCode="4"
-    android:versionName="0.4">
+    android:versionCode="5"
+    android:versionName="0.5">
 
     <!-- A TV does not necessarily have a touchscreen or declare Leanback (projectors, boxes): nothing is required. -->
     <uses-feature android:name="android.software.leanback" android:required="false" />

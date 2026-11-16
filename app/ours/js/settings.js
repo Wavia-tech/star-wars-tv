@@ -78,6 +78,7 @@ export class Settings {
   key(k) {
     const rows = this.rows(), r = rows[this.row];
     if (k === 'Escape' || k === 'Backspace' || k === 'ContextMenu' || k === 'Home') { this.close(); return; }
+    this.app.sfx.tick();
     if (k === 'ArrowUp') this.row--;
     else if (k === 'ArrowDown') this.row++;
     else if ((k === 'ArrowLeft' || k === 'ArrowRight') && r.options) {

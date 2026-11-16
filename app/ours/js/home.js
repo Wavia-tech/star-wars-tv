@@ -143,6 +143,7 @@ export class Home {
     const n = Math.max(0, Math.min(this.apps.length - 1, this.sel + d));
     if (n === this.sel) return false;
     this.sel = n;
+    this.sfx.tick();
     if (this.camp === 'sith') { this.surge = 1; this.sfx.crackle(); }
     return true;
   }
