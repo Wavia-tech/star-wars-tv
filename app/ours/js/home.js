@@ -22,9 +22,24 @@ function bg(src, fallback, camp) {
   return el;
 }
 
+// the logo for an app's package (assets/logos.js), else its own icon from the TV, else its name
+const LOGO_FOR = {
+  'com.netflix.ninja': 'netflix', 'com.netflix.mediaclient': 'netflix', 'com.disney.disneyplus': 'disney',
+  'com.amazon.amazonvideo.livingroom': 'prime', 'com.canal.android.canal': 'canal', 'com.google.android.youtube.tv': 'youtube',
+  'com.wbd.stream': 'max', 'com.hbo.hbonow': 'max', 'com.apple.atve.androidtv.appletv': 'appletv', 'com.cbs.ott': 'paramount',
+  'com.cbs.app': 'paramount', 'fr.francetv.pluzz': 'francetv', 'fr.tf1.mytf1': 'tf1', 'fr.m6.m6replay': 'm6', 'fr.m6.m6replay.by': 'm6',
+  'tv.arte.plus7': 'arte', 'com.crunchyroll.crunchyroid': 'crunchyroll', 'com.dazn': 'dazn', 'tv.twitch.android.app': 'twitch',
+  'tv.twitch.android.viewer': 'twitch', 'com.spotify.tv.android': 'spotify', 'deezer.android.tv': 'deezer', 'com.plexapp.android': 'plex',
+  'tv.molotov.app': 'molotov',
+};
+
 function logoEl(app) {
-  const L = LOGOS[app.id];
-  if (!L) { const d = document.createElement('div'); d.className = 'logo-text'; d.textContent = app.name; return d; }
+  const L = LOGOS[app.id || LOGO_FOR[app.pkg]];
+  if (!L) {
+    const icon = app.pkg && window.TV && TV.icon ? TV.icon(app.pkg) : null;
+    if (icon) { const im = document.createElement('img'); im.className = 'icon'; im.src = icon; im.alt = app.name; return im; }
+    const d = document.createElement('div'); d.className = 'logo-text'; d.textContent = app.name; return d;
+  }
   // the logo is a mask filled with one colour (some source files carry their own colours)
   const im = document.createElement('div'); im.className = 'logo' + (L.luma ? ' luma' : ''); im.setAttribute('aria-label', app.name);
   im.style.setProperty('--m', `url("${L.src}")`);
@@ -68,17 +83,33 @@ export class Home {
     this.clock.innerHTML = '<div class="t"></div><div class="d"></div>';
     root.append(this.clock);
 
+    // the gear at the top right: Réglages (Up from the dock)
+    this.gearEl = document.createElement('div'); this.gearEl.className = 'gear';
+    this.gearEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8l1.6 2.2 2.7-.6.6 2.7 2.4 1.3-1 2.6 1 2.6-2.4 1.3-.6 2.7-2.7-.6L12 21.2l-1.6-2.2-2.7.6-.6-2.7-2.4-1.3 1-2.6-1-2.6 2.4-1.3.6-2.7 2.7.6z"/></svg><span>Réglages</span>';
+    this.gearOn = false;
+
     this.dock = document.createElement('div'); this.dock.className = 'dock';
-    this.items = APPS.map((a) => {
+    const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'La salle des sabres  ▾';
+    root.append(this.gearEl, this.dock, hint);
+    this.setApps(APPS);
+    this.tick();
+  }
+
+  // the dock: up to six apps ({ name, pkg }), the ones the person picked in Personnaliser (and has on the TV)
+  setApps(list) {
+    this.apps = list.length ? list.slice(0, 6) : [{ name: 'Choisir mes applis', settings: true }];
+    this.dock.innerHTML = '';
+    this.items = this.apps.map((a) => {
       const el = document.createElement('div'); el.className = 'app';
       el.append(logoEl(a));
       this.dock.append(el);
       return { el, s: 1, v: 0, lastS: -1 };
     });
-    const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = 'La salle des sabres  ▾';
-    root.append(this.dock, hint);
-    this.tick();
+    this.sel = Math.min(this.sel, this.apps.length - 1);
+    this.selX = this.cellX(this.sel); this.velX = 0;
   }
+
+  gear(on) { this.gearOn = on; this.gearEl.classList.toggle('on', on); }
 
   // the scene for one side, built on first use (WebGL, or the plain picture if the TV has none)
   scene(c) {
@@ -98,7 +129,7 @@ export class Home {
     return sc;
   }
 
-  cellX(i) { return DOCK_L + (DOCK_W / APPS.length) * (i + 0.5); }
+  cellX(i) { return DOCK_L + (DOCK_W / (this.apps ? this.apps.length : APPS.length)) * (i + 0.5); }
 
   tick() {
     const d = new Date();
@@ -109,14 +140,14 @@ export class Home {
   setCamp(c) { this.camp = c; const sc = this.scene(c); if (sc.ready) this.shown = c; if (c === 'sith') { this.surge = 1; this.sfx.crackle(0.8, 0.45); } }
 
   move(d) {
-    const n = Math.max(0, Math.min(APPS.length - 1, this.sel + d));
+    const n = Math.max(0, Math.min(this.apps.length - 1, this.sel + d));
     if (n === this.sel) return false;
     this.sel = n;
     if (this.camp === 'sith') { this.surge = 1; this.sfx.crackle(); }
     return true;
   }
 
-  current() { return APPS[this.sel]; }
+  current() { return this.apps[this.sel]; }
 
   update(dt, t, visible) {
     const tx = this.cellX(this.sel);
@@ -138,7 +169,7 @@ export class Home {
     }
 
     this.items.forEach((it, i) => {
-      const target = i === this.sel ? 1.22 : 1;
+      const target = i === this.sel && !this.gearOn ? 1.22 : 1;
       it.v += ((target - it.s) * 260 - it.v * 22) * dt;
       it.s += it.v * dt;
       const s = Math.round(it.s * 1000) / 1000;
@@ -165,7 +196,7 @@ export class Home {
       this.surge = Math.max(0, this.surge - dt * (this.half ? 4.4 : 2.2));
       this.power = 0.6 + 0.4 * this.surge;
       const hand = THRONE_HAND;
-      const to = { x: this.selX, y: DOCK_TOP + 6 };
+      const to = this.gearOn ? { x: 1752, y: 96 } : { x: this.selX, y: DOCK_TOP + 6 };   // the lightning follows the focus
       const fresh = this.lightning.update(this.half ? dt * 2 : dt, hand, to, this.power);
       if (!fresh && sith >= 1 && this.box) return;
       if (this.box) { const b = this.box; ctx2.clearRect(b[0], b[1], b[2] - b[0], b[3] - b[1]); this.box = null; }

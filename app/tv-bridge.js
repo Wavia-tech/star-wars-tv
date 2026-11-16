@@ -26,6 +26,10 @@
       if (link) return A.openUrl(link, app);
       return A.launch(installed().has(app) ? app : DISNEY);
     },
+    // Réglages → Touche Home: "app" (Star Wars TV answers Home) or "original" (the TV's own home, the way back)
+    homeMode: () => A.homeMode() === "poudlard" ? "app" : "original",
+    setHome: mode => A.setHome(mode === "app" ? "poudlard" : "original"),
+    openSystem: key => A.openSystem(key, null),
     loadConfig: () => { try { return localStorage.getItem("starwars") || ""; } catch (e) { return ""; } },
     saveConfig: j => { try { localStorage.setItem("starwars", j); } catch (e) { } },
   };

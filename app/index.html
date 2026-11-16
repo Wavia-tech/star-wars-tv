@@ -224,7 +224,7 @@
   <!-- ============================================================ CUSTOMISE (Up in the cockpit) -->
   <div id="custom"><div class="box">
     <div class="h">Personnaliser l'accueil</div>
-    <div class="sub">Choisis jusqu'à six applis, dans l'ordre que tu veux, puis où s'ouvrent les films et les séries. Flèche du haut sur l'accueil pour revenir ici.</div>
+    <div class="sub">Choisis jusqu'à six applis, dans l'ordre que tu veux, puis où s'ouvrent les films et les séries. Pour y revenir : Réglages (en haut à droite de l'accueil), puis « Applis et films ».</div>
     <div class="lab">Les applis</div>
     <div class="grid"><div class="rows"></div></div>
     <div class="lab">Les films et séries s'ouvrent dans</div>
@@ -284,6 +284,9 @@ function saveSettings() {
 }
 const firstRun = !loadSettings() && DEFAULTS.askOnFirstRun !== false;      // config.js already set up for this TV: don't ask
 const settings = Object.assign({ dock: DEFAULTS.dock, films: DEFAULTS.films }, loadSettings() || {});
+// for our home (ours/boot.js): the dock as Personnaliser left it, only the apps the TV has; and that panel itself
+window.SW = { dock: () => settings.dock.filter(e => tvHas(e.pkg)).slice(0, 6).map(e => ({ name: e.label, pkg: e.pkg })), openCustom: () => openCustom() };
+window.SW_VERSION = "0.4";
 // two cockpits: 1 from the back of the cockpit (img/cockpit.png), 2 from the pilots' seats (img/cockpit2.png, shown 15% larger,
 // more canopy and less console). #cockpit2 in the address, or C on a keyboard, switches. pane: the centre pane in the picture.
 const CK = /cockpit2/.test(location.hash) ? { src: "img/cockpit2.png", z: 1.15, cy: 486, pane: { x: 959, y: 525 } }
@@ -944,7 +947,7 @@ function curtain(title, show) {
 const filmLink = title => ((DEFAULTS.links || {})[settings.films] || {})[title] || "";
 const watch = title => window.TV && TV.openFilm(filmLink(title), settings.films, title);
 function openApp() { const a = APPS[app]; if (a.target === "customise") return openCustom(); jump({ title: a.n, run: () => window.TV && TV.launch(a.target) }); }
-function openOurApp() { const a = OURS.home.current(); jump({ title: a.name, run: () => window.TV && TV.launch(a.pkg || a.id) }); }
+function openOurApp() { const a = OURS.home.current(); if (a.settings) return SW.openCustom(); jump({ title: a.name, run: () => window.TV && TV.launch(a.pkg || a.id) }); }
 function openFilm() { const f = SABERS[sel]; jump({ title: f.t, run: () => watch(f.open || f.t) }); }
 function openMando() { const m = MANDO[pk]; jump({ title: m.open, run: () => watch(m.open) }); }
 function jump(what) { if (jumping) return; jumping = true; jumpT = 0; jumpWhat = what; navText(); }
@@ -1006,17 +1009,24 @@ addEventListener("keydown", e => {
   const k = e.key;
   if (k.startsWith("Arrow") || k === "Enter") e.preventDefault();
   if ((k === "c" || k === "C") && window.OURS) { OURS.toggleCamp(); return; }
+  // Réglages: the remote's Menu key from anywhere, or OK on the gear at the top right of the home
+  if (window.OURS && OURS.settings.isOpen && !custom.open) { OURS.settings.key(k); if (!OURS.settings.isOpen && k === "Home") window.tvHome(); return; }
+  if (window.OURS && k === "ContextMenu" && !custom.open) { section = 0; OURS.home.gear(false); OURS.settings.open(); return; }
+  if (k === "Home" && !custom.open) { window.tvHome(); return; }
   if (k === "c" || k === "C") { location.hash = /cockpit2/.test(location.hash) ? "" : "cockpit2"; location.reload(); return; }
   if (custom.open) return customKey(k);
   if (jumping || back) return;
   const up = k === "ArrowUp", down = k === "ArrowDown", ok = k === "Enter" || k === " ", backKey = k === "Escape" || k === "Backspace";
   if (section === 0 && custOn) {                                       // Customise is showing at the top
     if (ok) openCustom(); else if (backKey || (k.startsWith("Arrow") && !up)) setCust(false);
+  } else if (section === 0 && window.OURS && OURS.home.gearOn) {          // the gear is focused
+    if (ok) { OURS.home.gear(false); OURS.settings.open(); }
+    else if (down || backKey || k === "ArrowLeft") OURS.home.gear(false);
   } else if (section === 0 && window.OURS) {
     if (k === "ArrowRight") OURS.home.move(1);
     else if (k === "ArrowLeft") OURS.home.move(-1);
     else if (down) section = 1;
-    else if (up) setCust(true);
+    else if (up) OURS.home.gear(true);
     else if (ok) openOurApp();
   } else if (section === 0) {
     if (k === "ArrowRight") focusApp(app + 1);
@@ -1048,7 +1058,7 @@ window.tvBack = () => {
   if (custOn) { setCust(false); return true; }
   if (jumping) return true; if (section > 0) { section--; return true; } return false;
 };
-window.tvHome = () => { if (custom.open) closeCustom(); setCust(false); section = 0; };   // the remote's Home button, when this is the home screen
+window.tvHome = () => { if (custom.open) closeCustom(); setCust(false); section = 0; if (window.OURS) { OURS.settings.close(); OURS.home.gear(false); } };   // the remote's Home button, when this is the home screen
 
 // ================================================================ CUSTOMISE
 // Every app on the TV and every HDMI port, as tiles: OK picks one for the cockpit (numbered in order, six at most) or drops
@@ -1166,6 +1176,7 @@ function closeCustom() {
   custom.open = false; $("#custom").classList.remove("open");
   for (const id of ["#home", "#saga", "#mando", "#dark"]) css($(id), "visibility", "visible");
   buildMarks(); pan.x = app; pan.v = 0; navText();
+  if (window.OURS) OURS.refreshApps();
 }
 let wheelAt = 0;
 addEventListener("wheel", e => { const n = performance.now(); if (n - wheelAt < 600 || Math.abs(e.deltaY) < 8) return; wheelAt = n; section = clamp(section + Math.sign(e.deltaY), 0, 3); }, { passive: true });

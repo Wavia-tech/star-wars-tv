@@ -3,6 +3,9 @@
 export class Sfx {
   constructor() { this.ctx = null; this.humGain = null; this.on = true; }
 
+  // Réglages → Sons
+  setOn(on) { this.on = on; if (this.master) this.master.gain.value = on ? 0.55 : 0; }
+
   unlock() {
     if (this.ctx) return;
     try {
@@ -10,7 +13,7 @@ export class Sfx {
       this.noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 2, this.ctx.sampleRate);
       const d = this.noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      this.master = this.ctx.createGain(); this.master.gain.value = 0.55; this.master.connect(this.ctx.destination);
+      this.master = this.ctx.createGain(); this.master.gain.value = this.on ? 0.55 : 0; this.master.connect(this.ctx.destination);
       // the hum: two slightly detuned saws through a low-pass, always running, gain driven by the blade
       this.humGain = this.ctx.createGain(); this.humGain.gain.value = 0;
       const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 340;
